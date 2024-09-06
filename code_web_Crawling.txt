@@ -1,0 +1,191 @@
+package st_miniproj;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.openqa.selenium.By;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.io.FileHandler;
+
+public class web_crawling {
+    private static Set<String> visitedUrls = new HashSet<>();
+    private static final int MAX_DEPTH = 1; // Adjust depth as needed
+    private static FileWriter reportWriter;
+
+    public static void main(String[] args) {
+        System.setProperty("webdriver.chrome.driver", "D:\\selen\\ChromeDriver_version_128\\chromedriver-win64\\chromedriver.exe");
+
+        WebDriver driver = new ChromeDriver();
+
+        try {
+            // Start the report
+            reportWriter = new FileWriter("report88.html");
+            startReport();
+
+            // Run tests
+            runTests(driver);
+
+            // Generate crawl report
+            long startTime = System.currentTimeMillis();
+            crawlPage(driver, "https://www.geeksforgeeks.org/what-is-array/?ref=roadmap", 0);
+            long endTime = System.currentTimeMillis();
+
+            System.out.println("Total execution time: " + (endTime - startTime) + " milliseconds");
+            
+            // End the report
+            endReport();
+            reportWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            driver.quit();
+        }
+    }
+
+    private static void crawlPage(WebDriver driver, String url, int depth) throws IOException {
+        if (depth > MAX_DEPTH || visitedUrls.contains(url)) {
+            return;
+        }
+
+        visitedUrls.add(url);
+        try {
+            driver.get(url);
+        } catch (Exception e) {
+            System.err.println("Failed to load URL: " + url);
+            e.printStackTrace();
+            return;
+        }
+
+        // Capture screenshot
+        captureScreenshot(driver, url);
+
+        // Find and count links
+        List<WebElement> links = driver.findElements(By.xpath("//a"));
+        int linkCount = links.size();
+        System.out.println("Total Number of link count on " + url + " = " + linkCount);
+
+        // Find and count images
+        List<WebElement> images = driver.findElements(By.xpath("//img"));
+        int imageCount = images.size();
+        System.out.println("Total Number of image count on " + url + " = " + imageCount);
+
+        // Find and count forms
+        List<WebElement> forms = driver.findElements(By.xpath("//form"));
+        int formCount = forms.size();
+        System.out.println("Total Number of form count on " + url + " = " + formCount);
+
+        // Display link text and URLs
+        for (WebElement link : links) {
+            System.out.println("Link Text: " + link.getText() + " - URL: " + link.getAttribute("href"));
+        }
+
+        // Find and count all elements
+        List<WebElement> allElements = driver.findElements(By.xpath("//*"));
+        int elementsCount = allElements.size();
+        System.out.println("Total Number of All Elements on " + url + " = " + elementsCount);
+
+        // Write data to the report
+        writeToReport(url, linkCount, imageCount, formCount, elementsCount, links);
+
+        // Recursively crawl linked pages
+        for (WebElement link : links) {
+            String linkUrl = link.getAttribute("href");
+            if (linkUrl != null && !linkUrl.isEmpty() && linkUrl.startsWith("http")) {
+                crawlPage(driver, linkUrl, depth + 1);
+            }
+        }
+    }
+
+    private static void captureScreenshot(WebDriver driver, String url) {
+        TakesScreenshot screenshot = (TakesScreenshot) driver;
+        File srcFile = screenshot.getScreenshotAs(OutputType.FILE);
+        String fileName = "screenshot_" + url.replaceAll("[^a-zA-Z0-9]", "_") + ".png";
+        try {
+            FileHandler.copy(srcFile, new File(fileName));
+            System.out.println("Screenshot saved: " + fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void startReport() throws IOException {
+        reportWriter.write("<html><head><title>Web Analysis Report</title></head><body>");
+        reportWriter.write("<h1>Web Analysis Report</h1>");
+    }
+
+    private static void endReport() throws IOException {
+        reportWriter.write("</body></html>");
+    }
+
+    private static void writeToReport(String url, int linkCount, int imageCount, int formCount, int elementsCount, List<WebElement> links) throws IOException {
+        reportWriter.write("<h2>URL: " + url + "</h2>");
+        reportWriter.write("<p>Total Number of link count on webpage = " + linkCount + "</p>");
+        reportWriter.write("<p>Total Number of image count on webpage = " + imageCount + "</p>");
+        reportWriter.write("<p>Total Number of form count on webpage = " + formCount + "</p>");
+        reportWriter.write("<p>Total Number of All Elements on webpage = " + elementsCount + "</p>");
+        reportWriter.write("<ul>");
+        for (WebElement link : links) {
+            reportWriter.write("<li>Link Text: " + link.getText() + " - URL: " + link.getAttribute("href") + "</li>");
+        }
+        reportWriter.write("</ul>");
+    }
+
+    private static void runTests(WebDriver driver) throws IOException {
+        // Test cases
+        testLinkCount(driver);
+        testImageCount(driver);
+        testFormCount(driver);
+        testElementsCount(driver);
+    }
+
+    private static void testLinkCount(WebDriver driver) throws IOException {
+        driver.get("https://www.geeksforgeeks.org/what-is-array/?ref=roadmap");
+        List<WebElement> links = driver.findElements(By.xpath("//a"));
+        int linkCount = links.size();
+        if (linkCount > 0) {
+            reportWriter.write("<p>testLinkCount: PASS</p>");
+        } else {
+            reportWriter.write("<p>testLinkCount: FAIL</p>");
+        }
+    }
+
+    private static void testImageCount(WebDriver driver) throws IOException {
+        driver.get("https://www.geeksforgeeks.org/what-is-array/?ref=roadmap");
+        List<WebElement> images = driver.findElements(By.xpath("//img"));
+        int imageCount = images.size();
+        if (imageCount > 0) {
+            reportWriter.write("<p>testImageCount: PASS</p>");
+        } else {
+            reportWriter.write("<p>testImageCount: FAIL</p>");
+        }
+    }
+
+    private static void testFormCount(WebDriver driver) throws IOException {
+        driver.get("https://www.geeksforgeeks.org/what-is-array/?ref=roadmap");
+        List<WebElement> forms = driver.findElements(By.xpath("//form"));
+        int formCount = forms.size();
+        if (formCount > 0) {
+            reportWriter.write("<p>testFormCount: PASS</p>");
+        } else {
+            reportWriter.write("<p>testFormCount: FAIL</p>");
+        }
+    }
+
+    private static void testElementsCount(WebDriver driver) throws IOException {
+        driver.get("https://www.geeksforgeeks.org/what-is-array/?ref=roadmap");
+        List<WebElement> allElements = driver.findElements(By.xpath("//*"));
+        int elementsCount = allElements.size();
+        if (elementsCount > 0) {
+            reportWriter.write("<p>testElementsCount: PASS</p>");
+        } else {
+            reportWriter.write("<p>testElementsCount: FAIL</p>");
+        }
+    }
+}
